@@ -11,6 +11,22 @@ pthread_mutex_t mutex;
 pthread_cond_t banheiroOcupado;    //Determina se o banheiro esta ocupado
 int ocupado=FALSE;
 
+typedef struct{
+	int homens;
+	int mulheres;
+	pthread_mutex_t mutex;
+	pthread_cond_t condHomens;
+	pthread_cond_t condMulheres;
+}dados;
+
+static dados sharedData={
+	.homens=0,
+	.mulheres=0,
+	.mutex=PTHREAD_MUTEX_INITIALIZER,
+	.condHomens=PTHREAD_COND_INITIALIZER,
+	.condMulheres=PTHREAD_COND_INITIALIZER
+};
+
 /*Declaracao de metodos*/
 void usaBanheiro();
 
@@ -18,6 +34,21 @@ void usaBanheiro();
 //So 3 de cada sexo entram por vez no banheiro - talvez precisa usar barreira/semaforo. Nao sei se da pra fazer tudo com mutex
 //Scanf do parametro de pessoas que querem usar o banheiro
 //Algum controle para que se menos de 3 pessoas de um dado sexo querem entrar elas possam entrar tb.
+
+
+void* homemTentaUsar(void *info){
+	dados *banheiro=(dados*)info;
+	while(TRUE){
+		pthread_mutex_lock(&banheiro->mutex);
+		banheiro->homens++;
+		while(banheiro->mulheres>=3||banheiro->homens<3){ 							//Dorme enquanto existerem mulheres no banheiro ou nao tem 3 homens para ir
+			pthread_cond_wait(&banheiro->condHomens, &banheiro->mutex);	    
+		}
+		usaBanheiro();																									//A thread usa o banheiro e acorda as outras do mesmo sexo
+		pthread_cond_broadcast(&banheiro->condHomens);
+	}
+	return NULL;
+}
 
 
 void* tentaAbrirBanheiro(){        //Talvez mudar, outra funcao deve chamar esta (?)
@@ -31,6 +62,8 @@ void* tentaAbrirBanheiro(){        //Talvez mudar, outra funcao deve chamar esta
     pthread_cond_wait(&banheiroOcupado, &mutex);  //Se estiver ocupado, dorme ate vagar
   }
   pthread_mutex_unlock(&mutex);
+
+	return NULL;
 }
 
 void usaBanheiro(){               //Fazer algo aqui
