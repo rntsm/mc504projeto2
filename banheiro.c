@@ -41,11 +41,12 @@ void* homemTentaUsar(void *info){
 	while(TRUE){
 		pthread_mutex_lock(&banheiro->mutex);
 		banheiro->homens++;
-		while(banheiro->mulheres>=3||banheiro->homens<3){ 							//Dorme enquanto existerem mulheres no banheiro ou nao tem 3 homens para ir
+		while(banheiro->mulheres>0||banheiro->homens>=3){ 							//Dorme enquanto existerem mulheres no banheiro ou tem 3 homens para usar
 			pthread_cond_wait(&banheiro->condHomens, &banheiro->mutex);	    
 		}
-		usaBanheiro();																									//A thread usa o banheiro e acorda as outras do mesmo sexo
-		pthread_cond_broadcast(&banheiro->condHomens);
+		usaBanheiro();																									//A thread usa o banheiro e acorda as outras do outro sexo
+		pthread_cond_broadcast(&banheiro->condMulheres);
+		pthread_mutex_unlock(&banheiro->mutex);
 	}
 	return NULL;
 }
