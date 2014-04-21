@@ -7,10 +7,10 @@
 #define TRUE 1
 
 /*Variaveis globais*/
-pthread_mutex_t mutex;         
+/*pthread_mutex_t mutex;         
 pthread_cond_t banheiroOcupado;    //Determina se o banheiro esta ocupado
 int ocupado=FALSE;
-
+*/
 typedef struct{
 	int homens;
 	int mulheres;
@@ -40,16 +40,25 @@ void usaBanheiro();
 //Algum controle para que se menos de 3 pessoas de um dado sexo querem entrar elas possam entrar tb.
 
 
-void* homemTentaUsar(void *info){
+void* homem(void *info){
 	dados *banheiro=(dados*)info;
 	while(TRUE){
 		pthread_mutex_lock(&banheiro->mutex);
-		banheiro->homens++;
+//		banheiro->homens++;
 		while(banheiro->mulheres>0||banheiro->homens>=3){ 							//Dorme enquanto existerem mulheres no banheiro ou tem 3 homens para usar
+			banheiro->homem_esperando++;
 			pthread_cond_wait(&banheiro->condHomens, &banheiro->mutex);	    
+			banheiro->homem_esperando--;
 		}
+		banheiro->homens++;
+		pthread_mutex_unlock(&banheiro->mutex);													//Permite que mais pessoas usem o banheiro
 		usaBanheiro();																									//A thread usa o banheiro e acorda as outras do outro sexo
-		pthread_cond_broadcast(&banheiro->condMulheres);
+		pthread_mutex_lock(&banheiro->mutex);
+		if(banheiro->mulher_esperando!=0){																
+			pthread_cond_broadcast(&banheiro->condMulheres);
+		}else if(banheiro->homem_esperando!=0){									//caso onde nao existem mulheres que querem usar o banheiro. Isso evita deadlock
+			pthread_cond_broadcast(&banheiro->condHomens);
+		}
 		pthread_mutex_unlock(&banheiro->mutex);
 	}
 	return NULL;
@@ -61,27 +70,27 @@ void* mulher(void *info){
   while(TRUE){
     pthread_mutex_lock(&banheiro->mutex);
     while(banheiro->homens>0 || banheiro->mulheres>=3){
-      mulher_esperando++;
-      pthread_cond_wait(&banheiro->condMulher, &banheiro->mutex);
-      mulher_esperando--;
+      banheiro->mulher_esperando++;
+      pthread_cond_wait(&banheiro->condMulheres, &banheiro->mutex);
+      banheiro->mulher_esperando--;
     }
     banheiro->mulheres++;
     pthread_mutex_unlock(&banheiro->mutex);
-    usaBanheiro(MULHER, getpid());
+    usaBanheiro();
     
     pthread_mutex_lock(&banheiro->mutex);
     banheiro->mulheres--;
-    if(homem_esperando)
-      pthread_cond_broadcast(&banheiro->condHomem);
-    else
-      pthread_cond_broadcast(&banheiro->condMulher);
+    if(banheiro->homem_esperando!=0)
+      pthread_cond_broadcast(&banheiro->condHomens);
+    else if(banheiro->mulher_esperando!=0)
+      pthread_cond_broadcast(&banheiro->condMulheres);
     pthread_mutex_unlock(&banheiro->mutex);    
   }
 
   return NULL;
 }
 
-
+/*
 void* tentaAbrirBanheiro(){        //Talvez mudar, outra funcao deve chamar esta (?)
   pthread_mutex_lock(&mutex);
   if(ocupado==FALSE){
@@ -96,7 +105,7 @@ void* tentaAbrirBanheiro(){        //Talvez mudar, outra funcao deve chamar esta
 
 	return NULL;
 }
-
+*/
 void usaBanheiro(){               //Fazer algo aqui
   printf("Entrei no banheiro\n");
 }
@@ -104,18 +113,18 @@ void usaBanheiro(){               //Fazer algo aqui
 int main(){
   pthread_t threads[N_MAX_PESSOAS];
   int i;
-  pthread_mutex_init(&mutex, NULL);
-  pthread_cond_init(&banheiroOcupado, NULL);
+//  pthread_mutex_init(&mutex, NULL);
+//  pthread_cond_init(&banheiroOcupado, NULL);
 
   for(i=0; i<N_MAX_PESSOAS; i++){
-    pthread_create(&threads[i], NULL, tentaAbrirBanheiro, NULL);   //Mudar para outra funcao depois, passar parametros talvez
+    pthread_create(&threads[i], NULL, homem, &sharedData);   //Mudar para outra funcao depois, passar parametros talvez
   }
 
   for(i=0; i<N_MAX_PESSOAS; i++){
     pthread_join(threads[i], NULL);
   }
 
-  pthread_mutex_destroy(&mutex);
-  pthread_cond_destroy(&banheiroOcupado);
+//  pthread_mutex_destroy(&mutex);
+//  pthread_cond_destroy(&banheiroOcupado);
   return 0;
 }
