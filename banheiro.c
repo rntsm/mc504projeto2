@@ -12,6 +12,8 @@
 #define TRUE 1
 
 /*Variaveis globais*/
+int h =0;
+int m=0;
 
 typedef struct{
 	int homens;
@@ -58,6 +60,35 @@ void fazerAlgoDaVida(){
 	sleep(tempo);
 }
 
+void animate(){
+	
+	system("clear");
+	
+	printf("================================\n");
+	printf("==== Sexo atual no banheiro ====\n");
+
+	if(sharedData.mulheres > 0){
+	printf("====        Feminino        ====\n");
+	printf("====      Quantidade: %1d     ====\n", sharedData.mulheres);
+	}
+	else if(sharedData.homens > 0){
+	printf("====        Masculino       ====\n");
+	printf("====      Quantidade: %1d     ====\n", sharedData.homens);
+	}else{
+	printf("====          Vazio         ====\n");
+	}
+	printf("================================\n");
+	printf("====          Filas         ====\n");
+	printf("==== Homens: %2d             ====\n", sharedData.homensEsperando);
+	printf("==== Mulheres: %2d           ====\n", sharedData.mulheresEsperando);
+	printf("================================\n");
+	printf("====          Vezes         ====\n");
+	printf("==== Homens: %2d             ====\n", h);
+	printf("==== Mulheres: %2d           ====\n", m);
+	printf("================================\n");
+
+}
+
 void* homem(void *info){
 	dados *banheiro=(dados*)info;
 	while(TRUE){
@@ -66,18 +97,22 @@ void* homem(void *info){
 		//Dorme enquanto existerem mulheres no banheiro ou tem 3 homens para usar
 		while(banheiro->mulheres>0||banheiro->homens>2){ 			
 			banheiro->homensEsperando++;
-			imprimirMensagemFila('H');
+			//imprimirMensagemFila('H');
+			animate();
 			pthread_cond_wait(&banheiro->condHomens, &banheiro->mutex);
 			banheiro->homensEsperando--;
 		}
 		banheiro->homens++;
+		h++;
 		
 		//A thread usa o banheiro e acorda as outras do outro sexo
-		printf("H no banheiro - T: %d H: %d M:%d\n", banheiro->homens, banheiro->homensEsperando,banheiro->mulheresEsperando);
+		//printf("H no banheiro - T: %d H: %d M:%d\n", banheiro->homens, banheiro->homensEsperando,banheiro->mulheresEsperando);
+		animate();
 		pthread_mutex_unlock(&banheiro->mutex);
 		usaBanheiro(TEMPO_HOMEM);
 		pthread_mutex_lock(&banheiro->mutex);
-		printf("H sai banheiro\n");
+		//printf("H sai banheiro\n");
+		animate();
 		banheiro->homens--;
 		if(banheiro->mulheresEsperando > 0)
 			pthread_cond_broadcast(&banheiro->condMulheres);
@@ -96,19 +131,23 @@ void* mulher(void *info){
 		//Dorme enquanto existerem homens no banheiro ou tem 3 mulheres para usar
 		while(banheiro->homens>0||banheiro->mulheres>2){
  			banheiro->mulheresEsperando++;
-			imprimirMensagemFila('M');
+			//imprimirMensagemFila('M');
+			animate();
 			pthread_cond_wait(&banheiro->condMulheres, &banheiro->mutex);
 			banheiro->mulheresEsperando--;
 		}
 		banheiro->mulheres++;
+		m++;
 		
 		//A thread usa o banheiro e acorda as outras do outro sexo
 
-		printf("M no banheiro - T: %d H: %d M:%d\n", banheiro->mulheres, banheiro->homensEsperando,banheiro->mulheresEsperando);
+		//printf("M no banheiro - T: %d H: %d M:%d\n", banheiro->mulheres, banheiro->homensEsperando,banheiro->mulheresEsperando);
+		animate();
 		pthread_mutex_unlock(&banheiro->mutex);
 		usaBanheiro(TEMPO_MULHER);
 		pthread_mutex_lock(&banheiro->mutex);
-		printf("M sai banheiro\n");
+		//printf("M sai banheiro\n");
+		animate();
 		banheiro->mulheres--;
 		if(banheiro->homensEsperando > 0)
 			pthread_cond_broadcast(&banheiro->condHomens);
@@ -119,11 +158,33 @@ void* mulher(void *info){
 	return NULL;
 }
 
+void* scanfThread(void *info){
+
+	dados *banheiro=(dados*)info;
+	while(TRUE){
+
+		int num;
+		scanf("%d", &num);
+
+		pthread_mutex_lock(&banheiro->mutex);
+		
+			
+
+		pthread_mutex_unlock(&banheiro->mutex);
+
+	}
+return NULL;
+}
+
 int main(){
   pthread_t threads[N_MAX_PESSOAS];
   int i;
   //pthread_mutex_init(&mutex, NULL);
   //pthread_cond_init(&banheiroOcupado, NULL);
+
+  pthread_t thread;
+  pthread_create(&thread, NULL, scanfThread, &sharedData);
+  
 
   for(i=0; i<N_MAX_PESSOAS; i++){
     pthread_create(&threads[i], NULL, i % 2 == 0 ? mulher : homem, &sharedData);
@@ -132,6 +193,8 @@ int main(){
   for(i=0; i<N_MAX_PESSOAS; i++){
     pthread_join(threads[i], NULL);
   }
+
+  pthread_join(thread, NULL);
 
   //pthread_mutex_destroy(&mutex);
   //pthread_cond_destroy(&banheiroOcupado);
