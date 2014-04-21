@@ -14,6 +14,8 @@ int ocupado=FALSE;
 typedef struct{
 	int homens;
 	int mulheres;
+	int homem_esperando;
+	int mulher_esperando;
 	pthread_mutex_t mutex;
 	pthread_cond_t condHomens;
 	pthread_cond_t condMulheres;
@@ -22,6 +24,8 @@ typedef struct{
 static dados sharedData={
 	.homens=0,
 	.mulheres=0,
+	.homem_esperando=0,
+	.mulher_esperando=0,
 	.mutex=PTHREAD_MUTEX_INITIALIZER,
 	.condHomens=PTHREAD_COND_INITIALIZER,
 	.condMulheres=PTHREAD_COND_INITIALIZER
@@ -49,6 +53,32 @@ void* homemTentaUsar(void *info){
 		pthread_mutex_unlock(&banheiro->mutex);
 	}
 	return NULL;
+}
+
+void* mulher(void *info){
+  dados *banheiro = (dados*) info;
+  
+  while(TRUE){
+    pthread_mutex_lock(&banheiro->mutex);
+    while(banheiro->homens>0 || banheiro->mulheres>=3){
+      mulher_esperando++;
+      pthread_cond_wait(&banheiro->condMulher, &banheiro->mutex);
+      mulher_esperando--;
+    }
+    banheiro->mulheres++;
+    pthread_mutex_unlock(&banheiro->mutex);
+    usaBanheiro(MULHER, getpid());
+    
+    pthread_mutex_lock(&banheiro->mutex);
+    banheiro->mulheres--;
+    if(homem_esperando)
+      pthread_cond_broadcast(&banheiro->condHomem);
+    else
+      pthread_cond_broadcast(&banheiro->condMulher);
+    pthread_mutex_unlock(&banheiro->mutex);    
+  }
+
+  return NULL;
 }
 
 
