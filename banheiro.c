@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <semaphore.h>
@@ -12,8 +13,10 @@
 #define TRUE 1
 
 /*Variaveis globais*/
-int h =0;
-int m=0;
+int hAliviados =0;
+int mAliviadas=0;
+int hTotal = 0;
+int mTotal=0;
 
 typedef struct{
 	int homens;
@@ -83,8 +86,8 @@ void animate(){
 	printf("==== Mulheres: %2d           ====\n", sharedData.mulheresEsperando);
 	printf("================================\n");
 	printf("====          Vezes         ====\n");
-	printf("==== Homens: %2d             ====\n", h);
-	printf("==== Mulheres: %2d           ====\n", m);
+	printf("==== Homens: %2d             ====\n", hAliviados);
+	printf("==== Mulheres: %2d           ====\n", mAliviadas);
 	printf("================================\n");
 
 }
@@ -103,7 +106,6 @@ void* homem(void *info){
 			banheiro->homensEsperando--;
 		}
 		banheiro->homens++;
-		h++;
 		
 		//A thread usa o banheiro e acorda as outras do outro sexo
 		//printf("H no banheiro - T: %d H: %d M:%d\n", banheiro->homens, banheiro->homensEsperando,banheiro->mulheresEsperando);
@@ -111,6 +113,7 @@ void* homem(void *info){
 		pthread_mutex_unlock(&banheiro->mutex);
 		usaBanheiro(TEMPO_HOMEM);
 		pthread_mutex_lock(&banheiro->mutex);
+		hAliviados++;
 		//printf("H sai banheiro\n");
 		animate();
 		banheiro->homens--;
@@ -136,9 +139,7 @@ void* mulher(void *info){
 			pthread_cond_wait(&banheiro->condMulheres, &banheiro->mutex);
 			banheiro->mulheresEsperando--;
 		}
-		banheiro->mulheres++;
-		m++;
-		
+		banheiro->mulheres++;	
 		//A thread usa o banheiro e acorda as outras do outro sexo
 
 		//printf("M no banheiro - T: %d H: %d M:%d\n", banheiro->mulheres, banheiro->homensEsperando,banheiro->mulheresEsperando);
@@ -146,6 +147,7 @@ void* mulher(void *info){
 		pthread_mutex_unlock(&banheiro->mutex);
 		usaBanheiro(TEMPO_MULHER);
 		pthread_mutex_lock(&banheiro->mutex);
+		mAliviadas++;
 		//printf("M sai banheiro\n");
 		animate();
 		banheiro->mulheres--;
@@ -162,15 +164,44 @@ void* scanfThread(void *info){
 
 	dados *banheiro=(dados*)info;
 	while(TRUE){
-
-		int num;
-		scanf("%d", &num);
-
-		pthread_mutex_lock(&banheiro->mutex);
 		
-			
 
-		pthread_mutex_unlock(&banheiro->mutex);
+
+//Para fazer
+//Fazer scan de algum valor que identifique operação (adicionar, remover), tipo (M ou H) e quantidade para modificar o número de homens e mulheres
+//Ao diminuir o número de homens ou mulheres remover certa quantia de threads
+//Ao  acrescentar o número de homens ou mulheres criar certa quantia de threads
+		
+		char op[5];
+		char tipo;
+		int qntd;
+		scanf("%s %c %d", op,&tipo,&qntd);
+
+		if(strstr("a",op) || strstr("A",op)){
+			if(tipo == 'M' || tipo == 'm'){
+				//add qntd mulheres
+				pthread_mutex_lock(&banheiro->mutex);
+				printf("arroy");			
+				pthread_mutex_unlock(&banheiro->mutex);
+			}else if(tipo == 'H'|| tipo == 'h'){
+				//add qntd homens
+			}else{
+				//erro			
+			}		
+		}else if(strstr("r",op) || strstr("R",op)){
+			if(tipo == 'M'|| tipo == 'm'){
+				//remove qntd mulheres
+			}else if(tipo == 'H'|| tipo == 'h'){
+				//remove qntd homens
+			}else{
+				//erro			
+			}		
+		}else{
+		//erro
+		}
+
+		//pthread_mutex_lock(&banheiro->mutex);
+		//pthread_mutex_unlock(&banheiro->mutex);
 
 	}
 return NULL;
@@ -187,7 +218,13 @@ int main(){
   
 
   for(i=0; i<N_MAX_PESSOAS; i++){
-    pthread_create(&threads[i], NULL, i % 2 == 0 ? mulher : homem, &sharedData);
+	int num = rand ()%2;
+	if(num % 2 == 0)
+		hTotal++;
+	else
+		mTotal++;
+		
+    pthread_create(&threads[i], NULL, num % 2 == 0 ? mulher : homem, &sharedData);
   }
 
   for(i=0; i<N_MAX_PESSOAS; i++){
