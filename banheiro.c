@@ -17,6 +17,7 @@ int hAliviados =0;
 int mAliviadas=0;
 int hTotal = 0;
 int mTotal=0;
+int numeroPessoasTotais;
 
 typedef struct{
 	int homens;
@@ -117,6 +118,9 @@ void* homem(void *info){
 		//printf("H sai banheiro\n");
 		animate();
 		banheiro->homens--;
+		if(hAliviados+mAliviadas>=numeroPessoasTotais){
+			exit(0);																						//Mudar aqui
+		}
 		if(banheiro->mulheresEsperando > 0)
 			pthread_cond_broadcast(&banheiro->condMulheres);
 		else
@@ -151,6 +155,9 @@ void* mulher(void *info){
 		//printf("M sai banheiro\n");
 		animate();
 		banheiro->mulheres--;
+		if(hAliviados+mAliviadas>=numeroPessoasTotais){
+			exit(0);																						//Mudar aqui
+		}
 		if(banheiro->homensEsperando > 0)
 			pthread_cond_broadcast(&banheiro->condHomens);
 		else
@@ -208,15 +215,30 @@ return NULL;
 }
 
 int main(){
-  pthread_t threads[N_MAX_PESSOAS];
+//  pthread_t threads[N_MAX_PESSOAS];
   int i;
   //pthread_mutex_init(&mutex, NULL);
   //pthread_cond_init(&banheiroOcupado, NULL);
 
-  pthread_t thread;
-  pthread_create(&thread, NULL, scanfThread, &sharedData);
-  
+//  pthread_t thread;
+//  pthread_create(&thread, NULL, scanfThread, &sharedData);
+	int numH, numM;
+	printf("Entre o numero de homens e mulheres:\n");
+	scanf("%d %d", &numH, &numM);
+	numeroPessoasTotais=numH+numM;
+	pthread_t threads[numeroPessoasTotais];	
+	for(i=0; i<numH; i++){
+		pthread_create(&threads[i], NULL, homem, &sharedData);
+	}
+	for(i=numH; i<numM+numH; i++){
+		pthread_create(&threads[i], NULL, mulher, &sharedData);
+	}
+	for(i=0; i<numeroPessoasTotais; i++){
+		pthread_join(threads[i], NULL);	
+	}
+	
 
+/*
   for(i=0; i<N_MAX_PESSOAS; i++){
 	int num = rand ()%2;
 	if(num % 2 == 0)
@@ -230,8 +252,8 @@ int main(){
   for(i=0; i<N_MAX_PESSOAS; i++){
     pthread_join(threads[i], NULL);
   }
-
-  pthread_join(thread, NULL);
+*/
+//  pthread_join(thread, NULL);
 
   //pthread_mutex_destroy(&mutex);
   //pthread_cond_destroy(&banheiroOcupado);
